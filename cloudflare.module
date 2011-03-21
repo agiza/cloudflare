@@ -193,7 +193,7 @@ function _cloudflare_ban_ip($ip) {
  * Implementation of hook_form_alter()
  */
 function cloudflare_form_comment_form_alter(&$form, $form_state) {
-  dpm($form);
+  //dpm($form);
   //dpm($form_state);
       
   // If cloudflare hasn't been configured, don't display form alterations.
