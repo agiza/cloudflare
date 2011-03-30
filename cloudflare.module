@@ -192,58 +192,59 @@ function _cloudflare_ban_ip($ip) {
 /**
  * Implementation of hook_form_alter()
  */
-function cloudflare_form_comment_form_alter(&$form, $form_state) {
-  //dpm($form);
-  //dpm($form_state);
-      
-  // If cloudflare hasn't been configured, don't display form alterations.
-  if (!_is_cloudflare_configured()) {
-    return $form;
-  }
-
-  // If we're not in edit mode, don't display form alterations.
-  if (!isset($form['cid']['#value'])) {
-    return $form;
-  }
-
-  $form['cloudflare_actions'] = array(
-    '#access' => user_access('administer cloudflare'),
-    '#type' => 'fieldset',
-    '#title' => t('Cloudflare actions'),
-    '#collapsible' => FALSE,
-    '#collapsed' => FALSE,
-    '#weight' => 22,
-  );
-      
-  $form['cloudflare_actions']['cloudflare_ban_ip'] = array(
-    '#access' => user_access('administer cloudflare'),
-    '#type' => 'submit',
-    '#value' => t('Ban IP'),
-    '#attributes' => array('title' => t('Ban IP Address in Cloudflare.')),
-    '#weight' => 23,
-  );
-  $form['cloudflare_actions']['cloudflare_ban_ip_delete'] = array(
-    '#access' => user_access('administer cloudflare'),
-    '#type' => 'submit',
-    '#value' => t('Ban IP + Delete Comment'),
-    '#attributes' => array('title' => t('Ban IP Address in Cloudflare, then delete comment.')),
-    '#weight' => 24,
-  );
-  //$form['cloudflare_actions']['cloudflare_report_spam'] = array(
-  //  '#access' => user_access('administer cloudflare'),
-  //  '#type' => 'submit',
-  //  '#value' => t('Report Spam'),
-  //  '#attributes' => array('title' => t('Report Spam to Cloudflare')),
-  //  '#weight' => 25,
-  //);
-  //$form['cloudflare_actions']['cloudflare_report_spam_delete'] = array(
-  //  '#access' => user_access('administer cloudflare'),
-  //  '#type' => 'submit',
-  //  '#value' => t('Report Spam + Delete Comment'),
-  //  '#attributes' => array('title' => t('Report Spam to Cloudflare, then delete comment.')),
-  //  '#weight' => 26,
-  //);
-}
+// not ready for prime-time.
+//function cloudflare_form_comment_form_alter(&$form, $form_state) {
+//  //dpm($form);
+//  //dpm($form_state);
+//      
+//  // If cloudflare hasn't been configured, don't display form alterations.
+//  if (!_is_cloudflare_configured()) {
+//    return $form;
+//  }
+//
+//  // If we're not in edit mode, don't display form alterations.
+//  if (!isset($form['cid']['#value'])) {
+//    return $form;
+//  }
+//
+//  $form['cloudflare_actions'] = array(
+//    '#access' => user_access('administer cloudflare'),
+//    '#type' => 'fieldset',
+//    '#title' => t('Cloudflare actions'),
+//    '#collapsible' => FALSE,
+//    '#collapsed' => FALSE,
+//    '#weight' => 22,
+//  );
+//      
+//  $form['cloudflare_actions']['cloudflare_ban_ip'] = array(
+//    '#access' => user_access('administer cloudflare'),
+//    '#type' => 'submit',
+//    '#value' => t('Ban IP'),
+//    '#attributes' => array('title' => t('Ban IP Address in Cloudflare.')),
+//    '#weight' => 23,
+//  );
+//  $form['cloudflare_actions']['cloudflare_ban_ip_delete'] = array(
+//    '#access' => user_access('administer cloudflare'),
+//    '#type' => 'submit',
+//    '#value' => t('Ban IP + Delete Comment'),
+//    '#attributes' => array('title' => t('Ban IP Address in Cloudflare, then delete comment.')),
+//    '#weight' => 24,
+//  );
+//  //$form['cloudflare_actions']['cloudflare_report_spam'] = array(
+//  //  '#access' => user_access('administer cloudflare'),
+//  //  '#type' => 'submit',
+//  //  '#value' => t('Report Spam'),
+//  //  '#attributes' => array('title' => t('Report Spam to Cloudflare')),
+//  //  '#weight' => 25,
+//  //);
+//  //$form['cloudflare_actions']['cloudflare_report_spam_delete'] = array(
+//  //  '#access' => user_access('administer cloudflare'),
+//  //  '#type' => 'submit',
+//  //  '#value' => t('Report Spam + Delete Comment'),
+//  //  '#attributes' => array('title' => t('Report Spam to Cloudflare, then delete comment.')),
+//  //  '#weight' => 26,
+//  //);
+//}
 
 
 /**
