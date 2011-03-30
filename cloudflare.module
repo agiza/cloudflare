@@ -58,6 +58,8 @@ function cloudflare_form_comment_admin_overview_alter(&$form, $form_state) {
   $form['options']['operation']['#options']['Cloudflare Actions'] = array(
     'cloudflare_ban_ip' => t('Ban IP'),
     'cloudflare_ban_ip_delete' => t('Ban IP + Delete Comment'),
+    'cloudflare_whitelist_ip' => t('Whitelist IP'),
+    'cloudflare_whitelist_ip_publish' => t('Whitelist IP + Publish Comment'),
     // TODO: Integrate with undocumented Spam API
     //'cloudflare_report_spam' => t('Report Spam'),
     //'cloudflare_report_spam_delete' => t('Report Spam + Delete Comment'),
@@ -77,6 +79,12 @@ function cloudflare_form_comment_admin_overview_alter(&$form, $form_state) {
           break;
         case 'cloudflare_ban_ip_delete':
           _cloudflare_ban_comment($cid, TRUE);
+          break;
+        case 'cloudflare_whitelist_ip':
+          _cloudflare_whitelist_comment($cid, FALSE);
+          break;
+        case 'cloudflare_whitelist_ip_publish':
+          _cloudflare_whitelist_comment($cid, TRUE);
           break;
         // TODO: Integrate with undocumented Spam API
         //case 'cloudflare_report_spam':
@@ -120,43 +128,95 @@ function _cloudflare_ban_comment($cid, $deletecid = FALSE){
   }
 }
 
+function _cloudflare_whitelist_comment($cid, $publishcid = FALSE){
+  $ip = _get_ip_address_from_comment($cid);
+
+  if (_cloudflare_whitelist_ip($ip) == "OK" && $publishcid) {
+    // only publish the comment if action returned true.
+    _cloudflare_publish_comment($cid);
+  }
+}
+
+function _cloudflare_whitelist_ip($ip) {
+  $result = _cloudflare_threat_api('wl',$ip);
+  // Get the first line only
+  list($status_code) = explode("\n", $result);
+
+  if ($status_code == "OK") {
+    drupal_set_message(t("You have successfully added %ip to your Cloudflare white list.", array('%ip' => $ip)), 'status', FALSE);
+    // record a message noting the action taken
+    watchdog('cloudflare', t('You have successfully added %ip to your Cloudflare white list.'), array('%ip' => $ip));
+  } else {
+      switch($status_code) {
+        case "E_UNAUTH":
+          $message_user = "Cloudflare response: Authorization could not be completed.";
+          $message_watchdog = t("Cloudflare response: Authorization could not be completed.");
+          break;
+        case "E_INVLDIP":
+          $message_user = "Cloudflare response: Malformed IPv4 address passed in. (IP: %ip)";
+          $message_watchdog = t("Cloudflare response: Malformed IPv4 address passed in. (IP: %ip)");
+          break;
+        case "E_INVLDINPUT":
+          $message_user = "Cloudflare response: Some other input was not valid.";
+          $message_watchdog = t("Cloudflare response: Some other input was not valid.");
+          break;
+        case "E_MAXAPI":
+          $message_user = "Cloudflare response: You have exceeded your allowed number of API calls.";
+          $message_watchdog = t("Cloudflare response: You have exceeded your allowed number of API calls.");
+          break;
+        case "CF_CIDR":
+          $message_user = "Sorry, %ip belongs to Cloudflare and cannot be white listed.";
+          $message_watchdog = t("Sorry, %ip belongs to Cloudflare and cannot be white listed.");
+          break;
+        case "MY_IP":
+          $message_user = "You dork.  %ip belongs to you!";
+          $message_watchdog = t("You dork.  %ip belongs to you!");
+          break;
+      }
+      drupal_set_message(t($message_user, array('%ip' => $ip)), 'warning', FALSE);
+      // record a message noting the action taken
+      watchdog('cloudflare', $message_watchdog, array('%ip' => $ip));
+    }
+  return $status_code;
+}
+
 function _cloudflare_ban_ip($ip) {
   $result = _cloudflare_threat_api('ban',$ip);
   // Get the first line only
   list($status_code) = explode("\n", $result);
 
   if ($status_code == "OK") {
-    drupal_set_message(t("You have successfully added $ip to your Cloudflare block list."), 'status', FALSE);
+    drupal_set_message(t("You have successfully added %ip to your Cloudflare block list.", array('%ip' => $ip)), 'status', FALSE);
     // record a message noting the action taken
     watchdog('cloudflare', t('You have successfully added %ip to your Cloudflare block list.'), array('%ip' => $ip));
   } else {
       switch($status_code) {
         case "E_UNAUTH":
-          $message_user = t("Cloudflare response: Authorization could not be completed.");
+          $message_user = "Cloudflare response: Authorization could not be completed.";
           $message_watchdog = t("Cloudflare response: Authorization could not be completed.");
           break;
         case "E_INVLDIP":
-          $message_user = t("Cloudflare response: Malformed IPv4 address passed in. (IP: $ip)");
+          $message_user = "Cloudflare response: Malformed IPv4 address passed in. (IP: %ip)";
           $message_watchdog = t("Cloudflare response: Malformed IPv4 address passed in. (IP: %ip)");
           break;
         case "E_INVLDINPUT":
-          $message_user = t("Cloudflare response: Some other input was not valid.");
+          $message_user = "Cloudflare response: Some other input was not valid.";
           $message_watchdog = t("Cloudflare response: Some other input was not valid.");
           break;
         case "E_MAXAPI":
-          $message_user = t("Cloudflare response: You have exceeded your allowed number of API calls.");
+          $message_user = "Cloudflare response: You have exceeded your allowed number of API calls.";
           $message_watchdog = t("Cloudflare response: You have exceeded your allowed number of API calls.");
           break;
         case "CF_CIDR":
-          $message_user = t("Sorry, $ip belongs to Cloudflare and cannot be banned.");
+          $message_user = "Sorry, %ip belongs to Cloudflare and cannot be banned.";
           $message_watchdog = t("Sorry, %ip belongs to Cloudflare and cannot be banned.");
           break;
         case "MY_IP":
-          $message_user = t("You dork.  $ip belongs to you!");
+          $message_user = "You dork.  %ip belongs to you!";
           $message_watchdog = t("You dork.  %ip belongs to you!");
           break;
       }
-      drupal_set_message($message_user, 'warning', FALSE);
+      drupal_set_message(t($message_user, array('%ip' => $ip)), 'warning', FALSE);
       // record a message noting the action taken
       watchdog('cloudflare', $message_watchdog, array('%ip' => $ip));
     }
@@ -336,7 +396,15 @@ function _get_ip_address_from_comment($cid) {
 */
 function _cloudflare_delete_comment($cid) {
   db_query("DELETE FROM {comments} WHERE cid = %d", $cid);
-  watchdog('action', t('Comment has been deleted.'));
+  watchdog('action', t("Comment #%id has been deleted.", array('%id' => $cid)));
+}
+
+/**
+* Publish comment.
+*/
+function _cloudflare_publish_comment($cid) {
+  db_query("UPDATE {comments} SET status = %d WHERE cid = %d", "0", $cid);
+  watchdog('action', t("Comment #%id has been published.", array('%id' => $cid)));
 }
 
 function _cidr_match($ip, $range) {
