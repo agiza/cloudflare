@@ -56,6 +56,8 @@ function cloudflare_form_comment_admin_overview_alter(&$form, $form_state) {
 
   // Add some additional options to the comment operations list.
   $form['options']['operation']['#options']['Cloudflare Actions'] = array(
+    'cloudflare_spam' => t('Report Spam'),
+    'cloudflare_spam_delete' => t('Report Spam + Delete'),
     'cloudflare_ban_ip' => t('Ban IP'),
     'cloudflare_ban_ip_delete' => t('Ban IP + Delete Comment'),
     'cloudflare_whitelist_ip' => t('Whitelist IP'),
@@ -86,6 +88,12 @@ function cloudflare_form_comment_admin_overview_alter(&$form, $form_state) {
         case 'cloudflare_whitelist_ip_publish':
           _cloudflare_whitelist_comment($cid, TRUE);
           break;
+        case 'cloudflare_spam':
+          _cloudflare_spam_report($cid, FALSE);
+          break;
+        case 'cloudflare_spam_delete':
+          _cloudflare_spam_report($cid, TRUE);
+          break;        
         // TODO: Integrate with undocumented Spam API
         //case 'cloudflare_report_spam':
         //  break;
@@ -128,6 +136,7 @@ function _cloudflare_ban_comment($cid, $deletecid = FALSE){
   }
 }
 
+
 function _cloudflare_whitelist_comment($cid, $publishcid = FALSE){
   $ip = _get_ip_address_from_comment($cid);
 
@@ -136,6 +145,26 @@ function _cloudflare_whitelist_comment($cid, $publishcid = FALSE){
     _cloudflare_publish_comment($cid);
   }
 }
+
+
+function _cloudflare_spam_report($cid, $deletecid = FALSE) {
+  $return_val = _cloudflare_spam_api($cid);
+  if ($return_val['result']->result == 'error') {
+    watchdog('cloudflare', t('Spam report failed.')."\n".serialize($return_val['result']->msg)."\n".serialize($return_val['options']));
+    drupal_set_message(t("Spam report failed: %msg",array('%msg'=>$return_val['result']->msg)));
+  } elseif ($return_val['result']->result == 'success') {
+    watchdog('cloudflare', t('Successfully submitted CloudFlare spam report.')."\n".serialize($return_val['value']));  
+    drupal_set_message(t("Successfully submitted CloudFlare spam report for ").$return_val['value']['am'].' / '.$return_val['value']['ip']);
+    // If delete is chosen, let's get that done now.    
+    if ($deletecid) {
+      _cloudflare_delete_comment($cid);
+    }
+  } else {
+    watchdog('cloudflare', t('Unexpected Response from CloudFlare.')."\n".$return_val['fc']);
+    drupal_set_message(t("Unexpected Response from CloudFlare. Please review your watchdog report for detailed information."));
+  }
+}
+
 
 function _cloudflare_whitelist_ip($ip) {
   $result = _cloudflare_threat_api('wl',$ip);
@@ -344,6 +373,56 @@ function _cloudflare_threat_api($action, $ip) {
   // Open the file using the HTTP headers set above
   $fc = check_plain(file_get_contents($cf_settings['cf_api_https_host'].$url, false, $context));
   return $fc;
+}
+
+
+function _cloudflare_spam_api($cid) {
+  // Retrieve the settings.
+  $cf_settings = _cloudflare_settings();
+  $cf_api_email = $cf_settings['cf_api_email'];
+  $cf_api_key = $cf_settings['cf_api_key'];
+  //$cf_ip_ranges = $cf_settings['cf_ip_ranges'];
+  //$my_ip = $cf_settings['my_ip'];
+
+  $comment = _comment_load($cid);
+  
+  $value = array("a" => $comment->name,
+                 "am" => $comment->mail,
+                 "ip" => $comment->hostname,
+                 "con" => substr($comment->comment, 0, 350));
+
+  $postdata = http_build_query(array(
+          'evnt_v' => json_encode($value),
+          'u' => $cf_api_email,
+          'tkn' => $cf_api_key,
+          'evnt_t' => 'WP_SPAM'
+          ), '', '&');
+
+  $opts = array('http' =>
+                  array(
+                        'method'  => 'POST',
+                        'header'  => array("Host: www.cloudflare.com",
+                                           "Content-type: application/x-www-form-urlencoded",
+                                           "Content-length: ".strlen($postdata),
+                                           "Connection: Close"),
+                        'content' => $postdata
+                        )
+                );
+  
+  $context  = stream_context_create($opts);
+  
+  $url = "/ajax/external-event.html";
+  
+  // Open the file using the HTTP headers set above
+  $fc = file_get_contents($cf_settings['cf_api_https_host'].$url, false, $context);
+  $result = json_decode($fc);
+  if ($result->result == 'error') {
+    return array("result"=>$result,"options"=>$opts);
+  } elseif ($result->result == 'success') {
+    return array("result"=>$result,"value"=>$value); 
+  } else {
+    return array("result"=>'other',"fc"=>$fc); 
+  }
 }
 
 
