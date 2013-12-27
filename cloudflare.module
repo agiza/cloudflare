@@ -13,6 +13,12 @@ function cloudflare_menu() {
   return $items;
 }
 
+/**
+ * Implements hook_perm().
+ */
+function cloudflare_perm() {
+  return array('administer cloudflare');
+}
 
 /**
 * cloudflare_menu() page callback function.
